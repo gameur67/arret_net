@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#07080d" />
+    <title>Arrêt net</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="boot" aria-hidden="true">
+      <div class="boot-inner">
+        <div class="boot-ring" aria-hidden="true"></div>
+        <span class="boot-text">Chargement</span>
+      </div>
+    </div>
+    <div id="impact-overlay" aria-hidden="true"></div>
+
+    <header id="top-bar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="brand-text">
+          <h1>Arrêt net</h1>
+          <p class="tagline">Figez au bon moment</p>
+        </div>
+      </div>
+      <div id="session-stats" aria-live="polite">
+        <span class="stat"><small>Score</small><strong id="stat-score">0</strong></span>
+        <span class="stat"><small>Combo</small><strong id="stat-combo">x0</strong></span>
+        <span class="stat"><small>Best</small><strong id="stat-best">0</strong></span>
+        <span class="stat"><small>Rang</small><strong id="stat-rank">1</strong></span>
+      </div>
+      <div class="difficulty-field">
+        <span class="field-label">Difficulté</span>
+        <div class="difficulty-line">
+          <button type="button" id="sound-toggle" class="sound-btn" aria-label="Activer le son">Son off</button>
+          <div id="difficulty-tabs" role="tablist" aria-label="Niveau de difficulté"></div>
+        </div>
+        <div id="custom-panel" class="custom-panel" hidden>
+          <label class="custom-row">
+            <span>Intervalle min</span>
+            <input id="custom-swing-min" type="range" min="-30" max="170" step="1" value="-20" />
+            <strong id="custom-swing-min-val">-20°</strong>
+          </label>
+          <label class="custom-row">
+            <span>Intervalle max</span>
+            <input id="custom-swing-max" type="range" min="20" max="220" step="1" value="200" />
+            <strong id="custom-swing-max-val">200°</strong>
+          </label>
+          <label class="custom-row">
+            <span>Vitesse</span>
+            <input id="custom-speed" type="range" min="0.8" max="3.5" step="0.05" value="1.6" />
+            <strong id="custom-speed-val">1.60x</strong>
+          </label>
+          <label class="custom-row">
+            <span>Changements min</span>
+            <input id="custom-turn-min" type="range" min="0.2" max="3.5" step="0.05" value="1.2" />
+            <strong id="custom-turn-min-val">1.20s</strong>
+          </label>
+          <label class="custom-row">
+            <span>Changements max</span>
+            <input id="custom-turn-max" type="range" min="0.3" max="5.2" step="0.05" value="2.1" />
+            <strong id="custom-turn-max-val">2.10s</strong>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <div id="hud">
+      <div class="hud-card">
+        <p id="instruction">Touche ou <kbd>Espace</kbd> pour figer le bras</p>
+        <p id="result" aria-live="polite"></p>
+        <button type="button" id="retry" class="btn-primary" hidden>Rejouer</button>
+      </div>
+    </div>
+
+    <canvas id="c"></canvas>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
