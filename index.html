@@ -39,7 +39,9 @@
       <div class="difficulty-field">
         <span class="field-label">Difficulté</span>
         <div class="difficulty-line">
-          <button type="button" id="sound-toggle" class="sound-btn" aria-label="Activer le son">Son off</button>
+          <button type="button" id="music-toggle" class="sound-btn" aria-label="Activer la musique">Musique on</button>
+          <button type="button" id="win-toggle" class="sound-btn" aria-label="Activer le son de victoire">Victoire on</button>
+          <button type="button" id="lose-toggle" class="sound-btn" aria-label="Activer le son de défaite">Défaite on</button>
           <div id="difficulty-tabs" role="tablist" aria-label="Niveau de difficulté"></div>
         </div>
         <div id="custom-panel" class="custom-panel" hidden>
@@ -79,6 +81,14 @@
         <button type="button" id="retry" class="btn-primary" hidden>Rejouer</button>
       </div>
     </div>
+
+    <div id="mobile-options-overlay" aria-hidden="true">
+      <div id="mobile-options-content"></div>
+    </div>
+    <nav id="mobile-switcher" aria-label="Navigation mobile">
+      <button type="button" class="mobile-switch-btn active" data-mobile-view="game">Jeu</button>
+      <button type="button" class="mobile-switch-btn" data-mobile-view="options">Options</button>
+    </nav>
 
     <canvas id="c"></canvas>
 

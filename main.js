@@ -6,6 +6,7 @@ const canvas = document.querySelector("#c");
 const resultEl = document.querySelector("#result");
 const instructionEl = document.querySelector("#instruction");
 const retryBtn = document.querySelector("#retry");
+const difficultyFieldEl = document.querySelector(".difficulty-field");
 const difficultyTabs = document.querySelector("#difficulty-tabs");
 const customPanelEl = document.querySelector("#custom-panel");
 const customSwingMinEl = document.querySelector("#custom-swing-min");
@@ -24,8 +25,13 @@ const scoreEl = document.querySelector("#stat-score");
 const comboEl = document.querySelector("#stat-combo");
 const bestEl = document.querySelector("#stat-best");
 const rankEl = document.querySelector("#stat-rank");
-const soundToggleBtn = document.querySelector("#sound-toggle");
-const IS_MOBILE = matchMedia("(pointer:coarse)").matches || window.innerWidth < 820;
+const musicToggleBtn = document.querySelector("#music-toggle");
+const winToggleBtn = document.querySelector("#win-toggle");
+const loseToggleBtn = document.querySelector("#lose-toggle");
+const mobileOptionsOverlayEl = document.querySelector("#mobile-options-overlay");
+const mobileOptionsContentEl = document.querySelector("#mobile-options-content");
+const mobileSwitchBtns = document.querySelectorAll(".mobile-switch-btn");
+const topBarEl = document.querySelector("#top-bar");
 
 /**
  * φ (degrés) : 0° main contre la jambe ; 90° ≈ horizontal avant ; 180° ≈ haut.
@@ -46,40 +52,58 @@ function shoulderRxToPhiDeg(rxRad) {
 
 /** Vitesses nettement plus élevées (plafond pour rester jouable sans flou total). */
 const BASE_SWING_SPEED = 4.6;
-const MAX_EFFECTIVE_SPEED = 9.5;
+const MAX_EFFECTIVE_SPEED = 22;
 const FIGURE_SCALE = 0.46;
 
 const LEVELS = [
-  { id: "easy", label: "Facile", speed: 1.0, turnS: [3.2, 5.4], wobble: 0.01 },
   {
     id: "normal",
     label: "Normal",
-    speed: 1.32,
-    turnS: [2.05, 3.45],
-    wobble: 0.022,
+    speed: 1.2,
+    turnS: [2.3, 3.8],
+    wobble: 0.018,
   },
   {
     id: "hard",
     label: "Difficile",
-    speed: 1.66,
-    turnS: [1.15, 2.05],
-    wobble: 0.035,
+    speed: 1.46,
+    turnS: [1.55, 2.7],
+    wobble: 0.029,
+  },
+  {
+    id: "expert",
+    label: "Expert",
+    speed: 1.72,
+    turnS: [1.0, 1.85],
+    wobble: 0.04,
   },
   {
     id: "extreme",
     label: "Extrême",
-    speed: 2.05,
-    turnS: [0.62, 1.1],
-    wobble: 0.05,
+    speed: 1.98,
+    turnS: [0.74, 1.3],
+    wobble: 0.053,
   },
   {
-    id: "insane",
-    label: "Insane",
-    speed: 2.45,
-    turnS: [0.42, 0.82],
-    wobble: 0.065,
-    swingMin: 18,
-    swingMax: 150,
+    id: "nightmare",
+    label: "Cauchemar",
+    speed: 2.22,
+    turnS: [0.58, 1.02],
+    wobble: 0.06,
+  },
+  {
+    id: "chaos",
+    label: "Chaos",
+    speed: 2.34,
+    turnS: [0.4, 0.74],
+    wobble: 0.072,
+  },
+  {
+    id: "mythic",
+    label: "Mythique",
+    speed: 3.3,
+    turnS: [0.24, 0.42],
+    wobble: 0.11,
   },
   {
     id: "custom",
@@ -92,7 +116,7 @@ const LEVELS = [
   },
 ];
 
-let currentLevelIndex = 1;
+let currentLevelIndex = 0;
 let frozen = false;
 let frozenAngle = 0;
 let lastAnimNow = performance.now();
@@ -111,11 +135,15 @@ let rank = 1;
 let bestScore = Number(localStorage.getItem("arret-net-best") || "0");
 
 let audioUnlocked = false;
-let soundEnabled = true;
+let musicEnabled = true;
+let winSfxEnabled = true;
+let loseSfxEnabled = true;
 let sfxCtx = null;
 let bgMusic = null;
 let loseAudio = null;
 let bgMusicCurrentVolume = 0.24;
+let mobileView = "game";
+let optionsMountedInMobileOverlay = false;
 
 const AUDIO_CANDIDATES = {
   bg: ["assets/audio.mp3", "audio.mp3", "audio/audio.mp3"],
@@ -144,8 +172,10 @@ function getLevel() {
 }
 
 function effectiveSwingSpeed() {
+  const streak = Math.min(combo, 5);
   const levelBoost = 1 + currentLevelIndex * 0.14;
-  const streakBoost = 1 + Math.min(combo, 24) * (0.022 + currentLevelIndex * 0.008);
+  // La montée de difficulté doit être nette en <= 5 réussites d'affilée.
+  const streakBoost = 1 + streak * (0.12 + currentLevelIndex * 0.02);
   return Math.min(BASE_SWING_SPEED * getLevel().speed * levelBoost * streakBoost, MAX_EFFECTIVE_SPEED);
 }
 
@@ -164,10 +194,11 @@ function scheduleNextDirectionSwitch(nowMs) {
     return;
   }
   const [a, b] = L.turnS;
-  const streak = Math.min(combo, 24);
+  const streak = Math.min(combo, 5);
   const levelAggro = 1 + currentLevelIndex * 0.22;
-  const streakAggro = 1 + streak * (0.05 + currentLevelIndex * 0.012);
-  const turnAggro = Math.min(levelAggro * streakAggro, 4.2);
+  // Accélère fortement les retournements sur les premières séries.
+  const streakAggro = 1 + streak * (0.18 + currentLevelIndex * 0.03);
+  const turnAggro = Math.min(levelAggro * streakAggro, 7.2);
   const minS = Math.max(0.12, a / turnAggro);
   const maxS = Math.max(minS + 0.06, b / turnAggro);
   nextDirectionSwitchAt = nowMs + (minS + Math.random() * (maxS - minS)) * 1000;
@@ -214,7 +245,7 @@ function ensureAudioPlayers() {
 }
 
 async function safePlay(audio, restart = false) {
-  if (!audio || !audioUnlocked || !soundEnabled) return;
+  if (!audio || !audioUnlocked) return;
   if (restart) {
     audio.pause();
     audio.currentTime = 0;
@@ -233,6 +264,7 @@ function setMusicVolume(volume) {
 
 function startMusic() {
   ensureAudioPlayers();
+  if (!musicEnabled) return;
   if (!bgMusic) return;
   if (loseAudio) {
     loseAudio.pause();
@@ -252,23 +284,35 @@ function stopLoseSound() {
   loseAudio.currentTime = 0;
 }
 
-function setSoundButtonState() {
-  if (!soundToggleBtn) return;
-  soundToggleBtn.classList.toggle("on", soundEnabled);
-  soundToggleBtn.textContent = soundEnabled ? "Son on" : "Son off";
+function setAudioButtonState(btn, enabled, onLabel, offLabel) {
+  if (!btn) return;
+  btn.classList.toggle("on", enabled);
+  btn.textContent = enabled ? onLabel : offLabel;
 }
 
-function setSoundEnabled(enabled) {
-  soundEnabled = enabled;
-  setSoundButtonState();
+function syncAudioButtons() {
+  setAudioButtonState(musicToggleBtn, musicEnabled, "Musique on", "Musique off");
+  setAudioButtonState(winToggleBtn, winSfxEnabled, "Victoire on", "Victoire off");
+  setAudioButtonState(loseToggleBtn, loseSfxEnabled, "Défaite on", "Défaite off");
+}
+
+function setMusicEnabled(enabled) {
+  musicEnabled = enabled;
+  syncAudioButtons();
   if (!audioUnlocked) return;
-  if (soundEnabled) {
-    startMusic();
-    if (frozen && isForbidden(frozenAngle)) safePlay(loseAudio, true);
-  } else {
-    stopMusic();
-    stopLoseSound();
-  }
+  if (musicEnabled) startMusic();
+  else stopMusic();
+}
+
+function setWinSfxEnabled(enabled) {
+  winSfxEnabled = enabled;
+  syncAudioButtons();
+}
+
+function setLoseSfxEnabled(enabled) {
+  loseSfxEnabled = enabled;
+  syncAudioButtons();
+  if (!loseSfxEnabled) stopLoseSound();
 }
 
 function unlockAudio() {
@@ -276,8 +320,8 @@ function unlockAudio() {
   ensureAudioPlayers();
   ensureAudioCtx();
   audioUnlocked = true;
-  startMusic();
-  setSoundButtonState();
+  if (musicEnabled) startMusic();
+  syncAudioButtons();
 }
 
 function sfxTone(f0, f1, dur, type, vol, at) {
@@ -298,7 +342,7 @@ function sfxTone(f0, f1, dur, type, vol, at) {
 }
 
 function playWinSound() {
-  if (!audioUnlocked || !soundEnabled) return;
+  if (!audioUnlocked || !winSfxEnabled) return;
   stopLoseSound();
   setMusicVolume(0.24);
   sfxTone(523, null, 0.07, "triangle", 0.13, 0);
@@ -307,15 +351,70 @@ function playWinSound() {
 }
 
 function playLoseSound() {
-  if (!audioUnlocked || !soundEnabled) return;
+  if (!audioUnlocked || !loseSfxEnabled) return;
   ensureAudioPlayers();
   setMusicVolume(0.1);
   safePlay(loseAudio, true);
 }
 
 function handlePrimaryAction() {
+  if (isMobileLayout() && mobileView === "options") return;
   if (frozen) resetRound();
   else stopArm();
+}
+
+function isMobileLayout() {
+  return window.matchMedia("(max-width: 820px)").matches || window.matchMedia("(pointer:coarse)").matches;
+}
+
+function mountOptionsIntoMobileOverlay() {
+  if (optionsMountedInMobileOverlay) return;
+  if (!difficultyFieldEl || !mobileOptionsContentEl) return;
+  difficultyFieldEl.classList.add("mobile-options-mounted");
+  mobileOptionsContentEl.appendChild(difficultyFieldEl);
+  optionsMountedInMobileOverlay = true;
+}
+
+function mountOptionsIntoTopBar() {
+  if (!optionsMountedInMobileOverlay) return;
+  if (!difficultyFieldEl || !topBarEl) return;
+  difficultyFieldEl.classList.remove("mobile-options-mounted");
+  topBarEl.appendChild(difficultyFieldEl);
+  optionsMountedInMobileOverlay = false;
+}
+
+function setMobileView(view) {
+  if (!isMobileLayout()) {
+    mobileView = "game";
+    document.body.classList.remove("mobile-options-open");
+    if (mobileOptionsOverlayEl) {
+      mobileOptionsOverlayEl.setAttribute("aria-hidden", "true");
+    }
+    mobileSwitchBtns.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.mobileView === "game");
+    });
+    mountOptionsIntoTopBar();
+    return;
+  }
+  mountOptionsIntoMobileOverlay();
+  mobileView = view === "options" ? "options" : "game";
+  const open = mobileView === "options";
+  document.body.classList.toggle("mobile-options-open", open);
+  if (mobileOptionsOverlayEl) {
+    mobileOptionsOverlayEl.setAttribute("aria-hidden", open ? "false" : "true");
+  }
+  mobileSwitchBtns.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mobileView === mobileView);
+  });
+}
+
+function setupMobileOptionsLayout() {
+  mobileSwitchBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setMobileView(btn.dataset.mobileView || "game");
+    });
+  });
+  setMobileView("game");
 }
 
 function physMat(color, rough = 0.42, metal = 0.06, clear = 0.12) {
@@ -330,7 +429,7 @@ function physMat(color, rough = 0.42, metal = 0.06, clear = 0.12) {
 }
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileLayout() ? 1.5 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -823,6 +922,26 @@ function currentShoulderRx(dt, nowMs) {
   motionVelDeg = THREE.MathUtils.lerp(motionVelDeg, targetVel, velAlpha);
   motionPhi += motionVelDeg * dt;
 
+  // Evite que le bras "traine" dans la zone 0..90 qui rend le jeu trop permissif.
+  const inEasyBand = motionPhi >= 0 && motionPhi <= 90;
+  if (inEasyBand) {
+    const distToCenter = Math.abs(motionPhi - 45);
+    const centerWeight = 1 - THREE.MathUtils.clamp(distToCenter / 45, 0, 1);
+    const escapeBoost = 1 + centerWeight * (0.38 + currentLevelIndex * 0.04);
+    motionPhi += motionDir * speedDegPerSec * (escapeBoost - 1) * dt;
+  }
+
+  // Evite aussi l'effet "bloqué" dans la zone haute 170..200 (surtout en Mythique).
+  const highBandMin = Math.max(swingMin + 8, swingMax - 30);
+  const inHighBand = motionPhi >= highBandMin && motionPhi <= swingMax;
+  if (inHighBand) {
+    const distToCenter = Math.abs(motionPhi - (highBandMin + swingMax) * 0.5);
+    const halfSpan = Math.max(6, (swingMax - highBandMin) * 0.5);
+    const centerWeight = 1 - THREE.MathUtils.clamp(distToCenter / halfSpan, 0, 1);
+    const escapeBoost = 1 + centerWeight * (0.48 + currentLevelIndex * 0.06);
+    motionPhi += motionDir * speedDegPerSec * (escapeBoost - 1) * dt;
+  }
+
   // Rebond sans pause aux extrêmes : on réfléchit l'overshoot.
   while (motionPhi < swingMin || motionPhi > swingMax) {
     if (motionPhi < swingMin) {
@@ -837,12 +956,17 @@ function currentShoulderRx(dt, nowMs) {
   }
 
   if (nowMs >= nextDirectionSwitchAt) {
-    // Inversion spontanée de direction sans téléporter la position.
-    const streak = Math.min(combo, 24);
-    motionDir *= -1;
-    const snapFactor = THREE.MathUtils.clamp(0.8 - streak * 0.014 - currentLevelIndex * 0.03, 0.42, 0.8);
-    motionVelDeg *= snapFactor;
-    scheduleNextDirectionSwitch(nowMs);
+    // Pas d'inversion aléatoire dans 0..90 ni dans la bande haute: on force la traversée.
+    if ((motionPhi >= 0 && motionPhi <= 90) || (motionPhi >= highBandMin && motionPhi <= swingMax)) {
+      nextDirectionSwitchAt = nowMs + 220 + Math.random() * 180;
+    } else {
+      // Inversion spontanée de direction sans téléporter la position.
+      const streak = Math.min(combo, 24);
+      motionDir *= -1;
+      const snapFactor = THREE.MathUtils.clamp(0.8 - streak * 0.014 - currentLevelIndex * 0.03, 0.42, 0.8);
+      motionVelDeg *= snapFactor;
+      scheduleNextDirectionSwitch(nowMs);
+    }
   }
 
   const wobbleDeg =
@@ -959,7 +1083,7 @@ function resetRound() {
   }
   stopLoseSound();
   setMusicVolume(0.24);
-  if (soundEnabled && audioUnlocked) startMusic();
+  if (musicEnabled && audioUnlocked) startMusic();
   instructionEl.hidden = false;
   retryBtn.hidden = true;
   scheduleNextDirectionSwitch(now);
@@ -1012,14 +1136,29 @@ canvas.addEventListener("pointerdown", () => {
   handlePrimaryAction();
 });
 retryBtn.addEventListener("click", () => resetRound());
-if (soundToggleBtn) {
-  setSoundButtonState();
-  soundToggleBtn.addEventListener("click", () => {
+if (musicToggleBtn) {
+  syncAudioButtons();
+  musicToggleBtn.addEventListener("click", () => {
     unlockAudio();
-    setSoundEnabled(!soundEnabled);
+    setMusicEnabled(!musicEnabled);
+  });
+}
+if (winToggleBtn) {
+  syncAudioButtons();
+  winToggleBtn.addEventListener("click", () => {
+    unlockAudio();
+    setWinSfxEnabled(!winSfxEnabled);
+  });
+}
+if (loseToggleBtn) {
+  syncAudioButtons();
+  loseToggleBtn.addEventListener("click", () => {
+    unlockAudio();
+    setLoseSfxEnabled(!loseSfxEnabled);
   });
 }
 setupCustomControls();
+setupMobileOptionsLayout();
 
 if (difficultyTabs) {
   LEVELS.forEach((L, i) => {
@@ -1041,11 +1180,12 @@ if (difficultyTabs) {
 window.addEventListener("resize", () => {
   const ww = window.innerWidth;
   const hh = window.innerHeight;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileLayout() ? 1.5 : 2));
   camera.aspect = ww / hh;
   camera.updateProjectionMatrix();
   renderer.setSize(ww, hh, false);
   frameCameraOnFigure();
+  setMobileView(mobileView);
 });
 
 function animate(now) {

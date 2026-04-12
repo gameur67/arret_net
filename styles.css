@@ -170,6 +170,8 @@ body {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .custom-panel {
@@ -229,6 +231,11 @@ body {
   border-color: transparent;
   background: linear-gradient(135deg, #5eead4, #2dd4bf);
   box-shadow: 0 0 16px rgba(94, 234, 212, 0.3);
+}
+
+#mobile-options-overlay,
+#mobile-switcher {
+  display: none;
 }
 
 #session-stats {
@@ -498,5 +505,100 @@ kbd {
 
   .hint {
     display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  #mobile-options-overlay {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 4.2rem;
+    bottom: 4.6rem;
+    z-index: 8;
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+    background: rgba(4, 8, 14, 0.72);
+    backdrop-filter: blur(14px);
+    padding: 0.8rem;
+    overflow: auto;
+  }
+
+  #mobile-options-content {
+    width: 100%;
+    display: grid;
+    justify-items: stretch;
+  }
+
+  #mobile-switcher {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+    padding: 0.5rem 0.7rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(5, 6, 10, 0.32), rgba(5, 6, 10, 0.95));
+  }
+
+  .mobile-switch-btn {
+    border: 1px solid var(--card-border);
+    background: rgba(12, 14, 22, 0.82);
+    color: var(--muted);
+    border-radius: 10px;
+    min-height: 2.5rem;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .mobile-switch-btn.active {
+    color: #042f2e;
+    background: linear-gradient(135deg, #5eead4, #2dd4bf);
+    border-color: transparent;
+  }
+
+  body.mobile-options-open #mobile-options-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.mobile-options-open #hud {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  body.mobile-options-open #instruction,
+  body.mobile-options-open #result,
+  body.mobile-options-open #retry {
+    visibility: hidden;
+  }
+
+  .mobile-options-mounted {
+    width: 100%;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .mobile-options-mounted .field-label {
+    font-size: 0.72rem;
+  }
+
+  .mobile-options-mounted .difficulty-line {
+    justify-content: flex-start;
+  }
+
+  .mobile-options-mounted #difficulty-tabs {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .mobile-options-mounted .custom-panel {
+    width: 100%;
+    margin-top: 0.35rem;
   }
 }
