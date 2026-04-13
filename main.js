@@ -135,8 +135,8 @@ let rank = 1;
 let bestScore = Number(localStorage.getItem("arret-net-best") || "0");
 
 let audioUnlocked = false;
-let musicEnabled = true;
-let winSfxEnabled = true;
+let musicEnabled = false;
+let winSfxEnabled = false;
 let loseSfxEnabled = true;
 let sfxCtx = null;
 let bgMusic = null;
